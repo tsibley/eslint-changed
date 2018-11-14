@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+main() {
+    changed-files | run-eslint "$@"
+}
+
+changed-files() {
+    git diff --name-only master -- '*.js' '*.jsx' | convert-to-null-delimited
+}
+
+convert-to-null-delimited() {
+    perl -pl0e 'chomp'
+}
+
+run-eslint() {
+    xargs -0 --no-run-if-empty npx eslint --ext .js,.jsx "$@"
+}
+
+main "$@"
