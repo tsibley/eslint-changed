@@ -1,0 +1,15 @@
+usage: git eslint
+       git eslint --edit
+
+Run eslint only on the lines touched by the current git branch.  Then quickly
+edit any issues found in vim (or your $GIT_ESLINT_EDITOR) to correct them.
+
+GIT_ESLINT_EDITOR will be run by the shell with a single argument: a
+quickfix-style list of errors in eslint's "unix" output format.
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -e, --edit  Edit eslint issues using vim's quickfix list. Set
+              GIT_ESLINT_EDITOR to use your preferred editor.
+
+Written by Thomas Sibley <https://tsibley.net>.
