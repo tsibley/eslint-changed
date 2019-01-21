@@ -1,17 +1,58 @@
 #!/usr/bin/env python3
+"""
+usage: git eslint
+       git eslint --edit
+
+Run eslint only on the lines touched by the current git branch.  Then quickly
+edit any issues found in vim (or your $GIT_ESLINT_EDITOR) to correct them.
+
+GIT_ESLINT_EDITOR will be run by the shell with a single argument: a
+quickfix-style list of errors in eslint's "unix" output format.
+
+Written by Thomas Sibley <https://tsibley.net>.
+"""
+
+import argparse
 import os
 import re
 import subprocess
 import sys
+from shlex import split as shellwords
 from itertools import takewhile
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+
+EDITOR = shellwords(os.environ.get("GIT_ESLINT_EDITOR", "vim -q"))
 
 
 def MAIN(args):
-    if args:
-        print("Arguments were provided but no arguments are taken", file = sys.stderr)
-        return 1
+    # Parse args
+    doc_paragraphs = __doc__.strip("\n").split("\n\n")
 
+    parser = argparse.ArgumentParser(
+        "git eslint",
+        usage           = ltrim("usage: ", doc_paragraphs[0]),
+        description     = "\n\n".join(doc_paragraphs[1:-1]),
+        epilog          = doc_paragraphs[-1],
+        formatter_class = argparse.RawDescriptionHelpFormatter)
+
+    # Modes of operation
+    modes = parser.add_mutually_exclusive_group()
+
+    modes.add_argument(
+        "-e", "--edit",
+        help = "Edit eslint issues using vim's quickfix list.  "
+               "Set GIT_ESLINT_EDITOR to use your preferred editor.",
+        action  = "store_const",
+        dest    = "mode",
+        const   = EDIT)
+
+    parser.set_defaults(mode = LIST)
+
+    opts = parser.parse_args(args)
+
+    # Run eslint
     touched_lines = list(git_lines_added(files = ("*.js", "*.jsx")))
     touched_files = list(set(str(filename) for filename, _ in touched_lines))
 
@@ -25,10 +66,30 @@ def MAIN(args):
            if (lint[0], lint[1]) in touched
     ]
 
+    # List or edit any lint issues
+    return opts.mode(linty_lines)
+
+
+def LIST(linty_lines):
     for lint in linty_lines:
         print(":".join(map(str, lint)))
 
     return 1 if linty_lines else 0
+
+
+def EDIT(linty_lines):
+    quickfix = NamedTemporaryFile(
+        prefix = "git-eslint-",
+        suffix = ".err",
+        mode = "w",
+        encoding = "utf-8")
+
+    for lint in linty_lines:
+        print(":".join(map(str, lint)), file = quickfix)
+
+    quickfix.flush()
+
+    os.execvp(EDITOR[0], [*EDITOR, quickfix.name])
 
 
 def eslint(files):
