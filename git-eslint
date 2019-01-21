@@ -21,6 +21,7 @@ from shlex import split as shellwords
 from itertools import takewhile
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from textwrap import indent
 
 
 EDITOR = shellwords(os.environ.get("GIT_ESLINT_EDITOR", "vim -q"))
@@ -164,8 +165,16 @@ def capture_output(argv, check = True):
     result = subprocess.run(
         argv,
         stdout = subprocess.PIPE,
-        stderr = subprocess.DEVNULL,
+        stderr = subprocess.PIPE,
         check  = check)
+
+    if result.stderr:
+        prog = argv[0]
+
+        if prog in ["git", "npx"]:
+            prog += " " + argv[1]
+
+        print(indent(result.stderr.decode("utf-8"), "[%s] " % prog), file = sys.stderr)
 
     return result.stdout.decode("utf-8").splitlines()
 
